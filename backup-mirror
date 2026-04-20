@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# Run as root
+if ! [ "$(id -u)" -eq 0 ]; then
+	printf "error: run as sudo\n"
+	exit
+fi
+
+# Backup of roots into cargo (18TB disk)
+rsync -avh --progress --delete \
+	/boot \
+        /etc \
+        /home \
+        /root \
+	/var \
+	--relative /srv/vms/ \
+	/usr \
+	/mnt/rootfs/mirror/ |& tee /mnt/rootfs/rsync.mirror.log
+
+echo "Last update: $(date)" > /mnt/rootfs/update.mirror.log
+
+
