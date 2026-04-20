@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Backup rootfs incrementally using rsync
+SOURCE_DIR="/"
+BACKUP_DIR="/mnt/rootfs/incremental"
+LOG_DIR="/mnt/rootfs/"
+DATE=$(date +%Y-%m-%d_%H-%M-%S)
+DN=$(date +'%Y%m%d-%H%M%S')
+NEW_BACKUP="$BACKUP_DIR/$DN"
+LATEST_BACKUP="$BACKUP_DIR/latest"
+
+# Ensure backup directories exist
+mkdir -p "$BACKUP_DIR"
+
+# Find the latest previous backup (or use current if none exists)
+if ! [ -d "$LATEST_BACKUP" ]; then
+	LATEST_BACKUP="$NEW_BACKUP"
+fi
+
+# Clean old log
+rm "$LOG_DIR"/changed.incremental.log
+
+# Perform incremental sync using --link-dest
+rsync -aAXv \
+    --log-file="$LOG_DIR"/changed.incremental.log --itemize-changes \
+    --out-format='%n' \
+    --delete \
+    --exclude={"/dev/*","/proc/*","/sys/*","/tmp/*","/run/*","/srv/*","/mnt/*","/media/*","/cdrom/*","/lost+found"} \
+    --relative /srv/vms/0-skel \
+    --link-dest="$LATEST_BACKUP" \
+    "$SOURCE_DIR/" "$NEW_BACKUP/"
+
+# Update current to point to the new backup
+rm -rf "$BACKUP_DIR/latest"
+ln -s "$NEW_BACKUP" "$BACKUP_DIR"/latest
+
+# Log completion
+echo "Last update: $(date)" > "$LOG_DIR"/update.incremental.log
